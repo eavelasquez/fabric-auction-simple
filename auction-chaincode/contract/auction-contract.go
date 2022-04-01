@@ -1,7 +1,14 @@
 package contract
 
-import "github.com/hyperledger/fabric-contract-api-go/contractapi"
+import (
+	"encoding/json"
+	"fmt"
 
+	"github.com/hyperledger/fabric-chaincode-go/shim"
+	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+)
+
+// AuctionContract is the contract that is used to manage auctions.
 type AuctionContract struct {
 	contractapi.Contract
 }
@@ -14,7 +21,21 @@ func (c *AuctionContract) CreateAuction(ctx contractapi.TransactionContextInterf
 
 // QueryAuction allows all members of the channel to read a public auction.
 func (c *AuctionContract) QueryAuction(ctx contractapi.TransactionContextInterface, auctionID string) (*Auction, error) {
-	var auction *Auction
+	bytes, err := ctx.GetStub().GetState(auctionID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get auction object %v: %v", auctionID, err)
+	}
+	if bytes == nil {
+		return nil, fmt.Errorf("Auction %v does not exist", auctionID)
+	}
+
+	auction := new(Auction)
+
+	err = json.Unmarshal(bytes, auction)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal auction object %v: %v", auctionID, err)
+	}
 
 	return auction, nil
 }
@@ -46,10 +67,62 @@ func (c *AuctionContract) RevealBid(ctx contractapi.TransactionContextInterface,
 	return nil
 }
 
-// CheckForHighterBid if an internal function that is used to determine if a
+// CheckForHigherBid is an internal function that is used to determine if a
 // winning bid has yet to be revealed.
-func (c *AuctionContract) CheckForHighterBid(ctx contractapi.TransactionContextInterface, auctionPrice int, revealedBidders map[string]FullBid, bidders map[string]BidHash) error {
-	return nil
+func (c *AuctionContract) CheckForHigherBid(ctx contractapi.TransactionContextInterface, auctionPrice int, revealedBidders map[string]FullBid, bidders map[string]BidHash) error {
+	// Get MSP ID of peer org.
+	peerMSPID, err := shim.GetMSPID()
+	if err != nil {
+		return fmt.Errorf("Failed to get MSP ID of peer org: %v", err)
+	}
+
+	var error error = nil
+
+	// Loop through all bidders and check if they are the highest bidder.
+	for bidKey, privateBid := range bidders {
+		_, bidInAuction := revealedBidders[bidKey]
+
+		// Bid is not already revealed, so check if it is the highest bidder, otherwise skip.
+		if !bidInAuction {
+			collection := "_implicit_org_" + privateBid.Org
+
+			// If private bid is from the same org as the peer, then check if it is the highest bidder.
+			if privateBid.Org == peerMSPID {
+				// Get bid from private data collection.
+				bytes, err := ctx.GetStub().GetPrivateData(collection, bidKey)
+				if err != nil {
+					return fmt.Errorf("Failed to get private data of bid from collection %v: %v", bidKey, err)
+				}
+				if bytes == nil {
+					return fmt.Errorf("Bid %v does not exist", bidKey)
+				}
+
+				bid := new(FullBid)
+
+				err = json.Unmarshal(bytes, bid)
+
+				if err != nil {
+					return fmt.Errorf("Failed to unmarshal bid %v: %v", bidKey, err)
+				}
+
+				// Check if bid is higher than auction price.
+				if bid.Price > auctionPrice {
+					error = fmt.Errorf("Cannot close auction, bidder has a higher price: %v", err)
+				}
+			} else {
+				// Get bid hash from from private data collection.
+				Hash, err := ctx.GetStub().GetPrivateDataHash(collection, bidKey)
+				if err != nil {
+					return fmt.Errorf("Failed to get private data of bid hash from collection %v: %v", bidKey, err)
+				}
+				if Hash == nil {
+					return fmt.Errorf("Bid hash %v does not exist", bidKey)
+				}
+			}
+		}
+	}
+
+	return error
 }
 
 // CloseAuction can be used by the seller to close the auction. This prevents bids
