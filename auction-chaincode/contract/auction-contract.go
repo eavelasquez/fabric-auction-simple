@@ -16,6 +16,51 @@ type AuctionContract struct {
 // CreateAuction creates on auction on the public channel. The identity that
 // submits the transaction becomes the seller of the auction.
 func (c *AuctionContract) CreateAuction(ctx contractapi.TransactionContextInterface, auctionID string, itemsold string) error {
+	// Get ID of submitting client identity.
+	clientID, err := c.GetSubmittingClientIdentity(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get ID of the client identity: %v", err)
+	}
+
+	// Get Org of submitting client identity.
+	clientOrg, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return fmt.Errorf("Failed to get Org client identity: %v", err)
+	}
+
+	// Create auction object.
+	bidders := make(map[string]BidHash)
+	revealedBids := make(map[string]FullBid)
+
+	auction := Auction{
+		Type:         "auction",
+		ItemSold:     itemsold,
+		Price:        0,
+		Seller:       clientID,
+		Orgs:         []string{clientOrg},
+		PrivateBids:  bidders,
+		RevealedBids: revealedBids,
+		Winner:       "",
+		Status:       "open",
+	}
+
+	bytes, err := json.Marshal(auction)
+	if err != nil {
+		return fmt.Errorf("Failed to marshal auction object: %v", err)
+	}
+
+	// Store auction object into state.
+	err = ctx.GetStub().PutState(auctionID, bytes)
+	if err != nil {
+		return fmt.Errorf("Failed to put auction object: %v", err)
+	}
+
+	// Set the seller of the auction as an endorser.
+	err = setAssetStateBasedEndorsement(ctx, auctionID, clientOrg)
+	if err != nil {
+		return fmt.Errorf("Failed setting state based endorsement for new organization: %v", err)
+	}
+
 	return nil
 }
 
@@ -48,7 +93,7 @@ func (c *AuctionContract) Bid(ctx contractapi.TransactionContextInterface, aucti
 }
 
 // QueryBid allows the submitter of the bid to query the bid from public state.
-func (c *AuctionContract) QueryBid(ctx contractapi.TransactionContextInterface, auctionID string, txtID string) (*FullBid, error) {
+func (c *AuctionContract) QueryBid(ctx contractapi.TransactionContextInterface, auctionID string, txID string) (*FullBid, error) {
 	var bid *FullBid
 
 	return bid, nil
@@ -58,7 +103,7 @@ func (c *AuctionContract) QueryBid(ctx contractapi.TransactionContextInterface, 
 // to the auction. Note that this functions alters the auction in private state,
 // and needs to meet the auction endorsement policy. Transaction ID is used to
 // identify the bid.
-func (c *AuctionContract) SubmitBid(ctx contractapi.TransactionContextInterface, auctionID string, txtID string) error {
+func (c *AuctionContract) SubmitBid(ctx contractapi.TransactionContextInterface, auctionID string, txID string) error {
 	return nil
 }
 
