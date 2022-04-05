@@ -1,1 +1,80 @@
-[]
+[
+    {
+        "transactionName": "CreateAuction",
+        "transactionLabel": "A test CreateAuction transaction",
+        "arguments": [
+            "001",
+            "some item sold"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "QueryAuction",
+        "transactionLabel": "A test QueryAuction transaction",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "Bid",
+        "transactionLabel": "A test Bid transaction",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "QueryBid",
+        "transactionLabel": "A test QueryBid transaction",
+        "arguments": [
+            "001",
+            "some transaction id"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "SubmitBid",
+        "transactionLabel": "A test SubmitBid transaction",
+        "arguments": [
+            "001",
+            "some transaction id"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "RevealBid",
+        "transactionLabel": "A test RevealBid transaction",
+        "arguments": [
+            "001",
+            "some transaction id"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "CheckForHigherBid",
+        "transactionLabel": "A test CheckForHigherBid transaction",
+        "arguments": [
+            0,
+            ["some bid"],
+            ["some bid hash"]
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "CloseAuction",
+        "transactionLabel": "A test CloseAuction transaction",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    },
+    {
+        "transactionName": "EndAuction",
+        "transactionLabel": "A test EndAuction transaction",
+        "arguments": [
+            "001"
+        ],
+        "transientData": {}
+    }
+]
