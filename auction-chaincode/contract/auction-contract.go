@@ -23,7 +23,7 @@ func (c *AuctionContract) CreateAuction(ctx contractapi.TransactionContextInterf
 	}
 
 	// Get Org of submitting client identity.
-	clientOrg, err := ctx.GetClientIdentity().GetMSPID()
+	clientOrgID, err := ctx.GetClientIdentity().GetMSPID()
 	if err != nil {
 		return fmt.Errorf("Failed to get Org client identity: %v", err)
 	}
@@ -37,7 +37,7 @@ func (c *AuctionContract) CreateAuction(ctx contractapi.TransactionContextInterf
 		ItemSold:     itemsold,
 		Price:        0,
 		Seller:       clientID,
-		Orgs:         []string{clientOrg},
+		Orgs:         []string{clientOrgID},
 		PrivateBids:  bidders,
 		RevealedBids: revealedBids,
 		Winner:       "",
@@ -56,7 +56,7 @@ func (c *AuctionContract) CreateAuction(ctx contractapi.TransactionContextInterf
 	}
 
 	// Set the seller of the auction as an endorser.
-	err = setAssetStateBasedEndorsement(ctx, auctionID, clientOrg)
+	err = setAssetStateBasedEndorsement(ctx, auctionID, clientOrgID)
 	if err != nil {
 		return fmt.Errorf("Failed setting state based endorsement for new organization: %v", err)
 	}
@@ -144,6 +144,77 @@ func (c *AuctionContract) QueryBid(ctx contractapi.TransactionContextInterface, 
 // and needs to meet the auction endorsement policy. Transaction ID is used to
 // identify the bid.
 func (c *AuctionContract) SubmitBid(ctx contractapi.TransactionContextInterface, auctionID string, txID string) error {
+	// Get the MSP ID of the bidder's org.
+	clientOrgID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return fmt.Errorf("Failed to get client identity MSP ID: %v", err)
+	}
+
+	// Get the auction from public state.
+	auction, err := c.QueryAuction(ctx, auctionID)
+	if err != nil {
+		return fmt.Errorf("Failed to get auction from public state: %v", err)
+	}
+
+	// The auction needs to be open for users to add their bid.
+	Status := auction.Status
+	if Status != "open" {
+		return fmt.Errorf("Cannot join closed or ended auction")
+	}
+
+	// Get the implicit collection name of bidder's org.
+	collection, err := getCollectionName(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get implicit collection name: %v", err)
+	}
+
+	// Use the transaction ID passed as a parameter to create composite bid key.
+	bidKey, err := ctx.GetStub().CreateCompositeKey(bidKeyType, []string{auctionID, txID})
+	if err != nil {
+		return fmt.Errorf("Failed to create composite key: %v", err)
+	}
+
+	// Get the hash of the bid stored in private data collection.
+	bidHash, err := ctx.GetStub().GetPrivateDataHash(collection, bidKey)
+	if err != nil {
+		return fmt.Errorf("Failed to get bid hash from private data collection: %v", err)
+	}
+	if bidHash == nil {
+		return fmt.Errorf("Bid Hash does not exist in private data collection: %v", bidKey)
+	}
+
+	// Store the hash along with the bidder's organization.
+	NewBidHash := BidHash{
+		Org:  clientOrgID,
+		Hash: fmt.Sprintf("%x", bidKey),
+	}
+
+	// Add the bid hash to the auction bidders hash.
+	bidders := make(map[string]BidHash)
+	bidders = auction.PrivateBids
+	bidders[bidKey] = NewBidHash
+	auction.PrivateBids = bidders
+
+	// Add the bindding organizarion to the list of participating organizations if it is not already.
+	Orgs := auction.Orgs
+	if !contains(Orgs, clientOrgID) {
+		newOrgs := append(Orgs, clientOrgID)
+		auction.Orgs = newOrgs
+
+		err = addAssetStateBasedEndorsement(ctx, auctionID, clientOrgID)
+		if err != nil {
+			return fmt.Errorf("Failed setting state based endorsement for new organizations: %v", err)
+		}
+	}
+
+	newAuction, _ := json.Marshal(auction)
+
+	// Update the auction in private state.
+	err = ctx.GetStub().PutState(auctionID, newAuction)
+	if err != nil {
+		return fmt.Errorf("Failed to update auction state: %v", err)
+	}
+
 	return nil
 }
 

@@ -46,7 +46,42 @@ func setAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, 
 		return fmt.Errorf("Failed to create endorsement policy bytes from org: %v", err)
 	}
 
-	// Set validation paramenter.
+	// Set validation parameter on the asset.
+	err = ctx.GetStub().SetStateValidationParameter(auctionID, policy)
+	if err != nil {
+		return fmt.Errorf("FAiled to set validation parameter on auction: %v", err)
+	}
+
+	return nil
+}
+
+// addAssetStateBasedEndorsement adds a new organization as an endorser of the auction
+func addAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, auctionID string, orgsToEndorse string) error {
+	// Get the endorsement policy.
+	endorsementPolicy, err := ctx.GetStub().GetStateValidationParameter(auctionID)
+	if err != nil {
+		return fmt.Errorf("Failed to get endorsement policy: %v", err)
+	}
+
+	// Create a new endorsement policy from the existing policy.
+	newEndorsementPolicy, err := statebased.NewStateEP(endorsementPolicy)
+	if err != nil {
+		return fmt.Errorf("Failed to create new endorsement policy: %v", err)
+	}
+
+	// Add the org to endorse to the policy.
+	err = newEndorsementPolicy.AddOrgs(statebased.RoleTypePeer, orgsToEndorse)
+	if err != nil {
+		return fmt.Errorf("Failed to add org to endorsement policy: %v", err)
+	}
+
+	// Get the new endorsement policy bytes.
+	policy, err := newEndorsementPolicy.Policy()
+	if err != nil {
+		return fmt.Errorf("Failed to create endorsement policy bytes from org: %v", err)
+	}
+
+	// Set validation parameter on the asset.
 	err = ctx.GetStub().SetStateValidationParameter(auctionID, policy)
 	if err != nil {
 		return fmt.Errorf("FAiled to set validation parameter on auction: %v", err)
@@ -90,4 +125,15 @@ func verifyClientOrgMatchesPeerOrg(ctx contractapi.TransactionContextInterface) 
 	}
 
 	return nil
+}
+
+// contains returns true if the string is in the slice, otherwise false
+func contains(s []string, str string) bool {
+	for _, a := range s {
+		if a == str {
+			return true
+		}
+	}
+
+	return false
 }
