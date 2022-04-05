@@ -66,6 +66,7 @@ func (c *AuctionContract) CreateAuction(ctx contractapi.TransactionContextInterf
 
 // QueryAuction allows all members of the channel to read a public auction.
 func (c *AuctionContract) QueryAuction(ctx contractapi.TransactionContextInterface, auctionID string) (*Auction, error) {
+	// Get Auction from the ledger.
 	bytes, err := ctx.GetStub().GetState(auctionID)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get auction object %v: %v", auctionID, err)
@@ -88,8 +89,47 @@ func (c *AuctionContract) QueryAuction(ctx contractapi.TransactionContextInterfa
 // Bid is used to add a user's bid to an auction. The bid is stored in the private
 // data collection on the peer of the bidder's organization. The function returns
 // the transaction ID so that users can identify and query the bid later.
-func (c *AuctionContract) Bid(ctx contractapi.TransactionContextInterface, auctionID string) error {
-	return nil
+func (c *AuctionContract) Bid(ctx contractapi.TransactionContextInterface, auctionID string) (string, error) {
+	// Get Bid from transient map.
+	transientMap, err := ctx.GetStub().GetTransient()
+	if err != nil {
+		return "", fmt.Errorf("Error getting bid from transient map: %v", err)
+	}
+
+	bid, ok := transientMap["bid"]
+	if !ok {
+		return "", fmt.Errorf("Bid key not found in the transient map")
+	}
+
+	// Get the implicit collection name using the bidder's organization ID.
+	collection, err := getCollectionName(ctx)
+	if err != nil {
+		return "", fmt.Errorf("Failed to get implicit collection name: %v", err)
+	}
+
+	// The bidder has to target their peer to store the bid.
+	err = verifyClientOrgMatchesPeerOrg(ctx)
+	if err != nil {
+		return "", fmt.Errorf("Cannot store bid on this peer, not a member of this org: %v", err)
+	}
+
+	// The transaction ID is used as a unique index for the bid.
+	txID := ctx.GetStub().GetTxID()
+
+	// Create a composite key using the transaction ID.
+	bidKey, err := ctx.GetStub().CreateCompositeKey(bidKeyType, []string{auctionID, txID})
+	if err != nil {
+		return "", fmt.Errorf("Failed to create composite key: %v", err)
+	}
+
+	// Put the bid into the organization's implicit data collection.
+	err = ctx.GetStub().PutPrivateData(collection, bidKey, bid)
+	if err != nil {
+		return "", fmt.Errorf("Failed to input price into collection: %v", err)
+	}
+
+	// Return the transaction ID so that the used can identity and query the bid later.
+	return txID, nil
 }
 
 // QueryBid allows the submitter of the bid to query the bid from public state.
