@@ -1,0 +1,26 @@
+{
+  "name": "auction-application",
+  "version": "1.0.0",
+  "description": "Auction Application implemented in JavaScript",
+  "engines": {
+    "node": ">=12",
+    "npm": ">=5"
+  },
+  "engineStrict": true,
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint *.js",
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Esteban Velasquez <eavc.30@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "fabric-ca-client": "^2.2.11",
+    "fabric-network": "^2.2.11"
+  },
+  "devDependencies": {
+    "eslint": "^7.32.0"
+  }
+}
