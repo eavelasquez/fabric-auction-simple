@@ -135,7 +135,51 @@ func (c *AuctionContract) Bid(ctx contractapi.TransactionContextInterface, aucti
 
 // QueryBid allows the submitter of the bid to query the bid from public state.
 func (c *AuctionContract) QueryBid(ctx contractapi.TransactionContextInterface, auctionID string, txID string) (*FullBid, error) {
+	// Verify that the bidder is a member of the bidder's organization.
+	err := verifyClientOrgMatchesPeerOrg(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to verify that the bidder is a member of the bidder's organization': %v", err)
+	}
+
+	// Get ID of submitting client identity.
+	clientID, err := c.GetSubmittingClientIdentity(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get ID of the client identity: %v", err)
+	}
+
+	// Get the implicit collection name of bidder's org.
+	collection, err := getCollectionName(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get implicit collection name: %v", err)
+	}
+
+	// Create a composite key using the auction ID and transaction ID.
+	bidKey, err := ctx.GetStub().CreateCompositeKey(bidKeyType, []string{auctionID, txID})
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create composite key: %v", err)
+	}
+
+	// Get the bid from the bidder's org's private data collection.
+	bytes, err := ctx.GetStub().GetPrivateData(collection, bidKey)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get bid from collection: %v", err)
+	}
+	if bytes == nil {
+		return nil, fmt.Errorf("Bid key does not exist in the collection")
+	}
+
+	// Unmarshal the bid into a FullBid object.
 	var bid *FullBid
+
+	err = json.Unmarshal(bytes, &bid)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal bid: %v", err)
+	}
+
+	// Check that client querying the bid is the bid owner.
+	if bid.Bidder != clientID {
+		return nil, fmt.Errorf("Permission denied, client id %v is not the bid owner of the bid", clientID)
+	}
 
 	return bid, nil
 }
