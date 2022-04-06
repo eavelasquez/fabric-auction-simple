@@ -1,6 +1,8 @@
 package contract
 
 import (
+	"bytes"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 
@@ -219,7 +221,126 @@ func (c *AuctionContract) SubmitBid(ctx contractapi.TransactionContextInterface,
 }
 
 // RevealBid is used by the bidder to reveal the bid after the auction is closed.
-func (c *AuctionContract) RevealBid(ctx contractapi.TransactionContextInterface, auctionID string) error {
+func (c *AuctionContract) RevealBid(ctx contractapi.TransactionContextInterface, auctionID string, txID string) error {
+	// Get Bid from transient map.
+	transientMap, err := ctx.GetStub().GetTransient()
+	if err != nil {
+		return fmt.Errorf("Error getting bid from transient map: %v", err)
+	}
+
+	transientBid, ok := transientMap["bid"]
+	if !ok {
+		return fmt.Errorf("Bid key not found in the transient map")
+	}
+
+	// Get the implicit collection name using the bidder's organization ID.
+	collection, err := getCollectionName(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get implicit collection name: %v", err)
+	}
+
+	// Use transaction ID to create composite bid key.
+	bidKey, err := ctx.GetStub().CreateCompositeKey(bidKeyType, []string{auctionID, txID})
+	if err != nil {
+		return fmt.Errorf("Failed to create composite bid key: %v", err)
+	}
+
+	// Get Bid Hash of bid if private bid on the public ledger.
+	bidHash, err := ctx.GetStub().GetPrivateDataHash(collection, bidKey)
+	if err != nil {
+		return fmt.Errorf("Failed to get private bid hash from collection: %v", err)
+	}
+	if bidHash == nil {
+		return fmt.Errorf("Bid hash does not exist in private data collection: %v", bidKey)
+	}
+
+	// Get auction from public state
+	auction, err := c.QueryAuction(ctx, auctionID)
+	if err != nil {
+		return fmt.Errorf("Failed to get auction from public state: %v", err)
+	}
+
+	// Complete a series of three checks before we add the bid to the auction.
+
+	// Check 1: check that the auction is closed. We cannot reveal a
+	// bid if the auction is not closed.
+	Status := auction.Status
+	if Status != "closed" {
+		return fmt.Errorf("Cannot reveal bid for open or ended auction")
+	}
+
+	// Check 2: check that hash of revealed bid matches hash of private bid
+	// on the public ledger. This checks that the bidder is telling the truth
+	// about the value of their bid.
+	hash := sha256.New()
+	hash.Write(transientBid)
+	calculatedBidHash := hash.Sum(nil)
+
+	// Verify that the hash of the passed immutable properties matches the on-chain hash.
+	if !bytes.Equal(calculatedBidHash, bidHash) {
+		return fmt.Errorf("Hash %x for bid hash %s does not match hash in auction: %x", calculatedBidHash, transientBid, bidHash)
+	}
+
+	// Check 3: check hash of revealed bid matches hash of private bid that was
+	// added earlier. This ensures that the bid hash not changed since it
+	// was added to the auction.
+	bidders := auction.PrivateBids
+	privateBidHashString := bidders[bidKey].Hash
+
+	onChainBidHashString := fmt.Sprintf("%x", bidKey)
+	if privateBidHashString != onChainBidHashString {
+		return fmt.Errorf("Hash %s for bid %s does not match hash in auction: %s, bidder must have changed bid", privateBidHashString, transientBid, onChainBidHashString)
+	}
+
+	// We can add the bid to the auction if all checks have passed.
+	type transientBidInput struct {
+		Price  int    `json:"price"`
+		Org    string `json:"org"`
+		Bidder string `json:"bidder"`
+	}
+
+	// Unmarhsal the bid into a transientBidInput struct.
+	var bidInput transientBidInput
+
+	err = json.Unmarshal(transientBid, &bidInput)
+	if err != nil {
+		return fmt.Errorf("Failed to unmarshal bid: %v", err)
+	}
+
+	// Get ID of submitting client identity.
+	clientID, err := c.GetSubmittingClientIdentity(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get submitting client identity: %v", err)
+	}
+
+	// Marshal transient parameters and ID and MSP ID into bid object.
+	NewBid := FullBid{
+		Type:   bidKeyType,
+		Price:  bidInput.Price,
+		Org:    bidInput.Org,
+		Bidder: bidInput.Bidder,
+	}
+
+	// Check 4: make sure that the transaction is being submitted is the bidder.
+	if bidInput.Bidder != clientID {
+		return fmt.Errorf("Permission denied, client id %v is not the owner of the bid", clientID)
+	}
+
+	// Add the bid to the auction.
+	revealedBids := make(map[string]FullBid)
+	revealedBids = auction.RevealedBids
+	revealedBids[bidKey] = NewBid
+	auction.RevealedBids = revealedBids
+
+	// Update the auction in private state.
+	newAuction, _ := json.Marshal(auction)
+
+	// Put auction with bid added back into state.
+	err = ctx.GetStub().PutState(auctionID, newAuction)
+	if err != nil {
+		return fmt.Errorf("Failed to update auction state: %v", err)
+	}
+
 	return nil
 }
 
