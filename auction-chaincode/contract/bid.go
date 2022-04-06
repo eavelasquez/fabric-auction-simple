@@ -4,7 +4,7 @@ package contract
 type FullBid struct {
 	Type   string `json:"objectType"`
 	Price  int    `json:"price"`
-	Org    string `json:"organization"`
+	Org    string `json:"org"`
 	Bidder string `json:"bidder"`
 }
 

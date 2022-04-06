@@ -53,7 +53,7 @@ func (c *AuctionContract) CreateAuction(ctx contractapi.TransactionContextInterf
 	// Store auction object into state.
 	err = ctx.GetStub().PutState(auctionID, bytes)
 	if err != nil {
-		return fmt.Errorf("Failed to put auction object: %v", err)
+		return fmt.Errorf("Failed to put auction in public data: %v", err)
 	}
 
 	// Set the seller of the auction as an endorser.
@@ -87,10 +87,10 @@ func (c *AuctionContract) QueryAuction(ctx contractapi.TransactionContextInterfa
 	return auction, nil
 }
 
-// Bid is used to add a user's bid to an auction. The bid is stored in the private
+// Bid is used to add a user's bid to the auction. The bid is stored in the private
 // data collection on the peer of the bidder's organization. The function returns
-// the transaction ID so that users can identify and query the bid later.
-func (c *AuctionContract) Bid(ctx contractapi.TransactionContextInterface, auctionID string) (string, error) {
+// the transaction ID so that users can identify and query their bid.
+func (c *AuctionContract) CreateBid(ctx contractapi.TransactionContextInterface, auctionID string) (string, error) {
 	// Get Bid from transient map.
 	transientMap, err := ctx.GetStub().GetTransient()
 	if err != nil {
@@ -133,7 +133,7 @@ func (c *AuctionContract) Bid(ctx contractapi.TransactionContextInterface, aucti
 	return txID, nil
 }
 
-// QueryBid allows the submitter of the bid to query the bid from public state.
+// QueryBid allows the submitter of the bid to query their bid from public state.
 func (c *AuctionContract) QueryBid(ctx contractapi.TransactionContextInterface, auctionID string, txID string) (*FullBid, error) {
 	// Verify that the bidder is a member of the bidder's organization.
 	err := verifyClientOrgMatchesPeerOrg(ctx)
@@ -162,10 +162,10 @@ func (c *AuctionContract) QueryBid(ctx contractapi.TransactionContextInterface, 
 	// Get the bid from the bidder's org's private data collection.
 	bytes, err := ctx.GetStub().GetPrivateData(collection, bidKey)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get bid from collection: %v", err)
+		return nil, fmt.Errorf("Failed to get bid %v from collection: %v", bidKey, err)
 	}
 	if bytes == nil {
-		return nil, fmt.Errorf("Bid key does not exist in the collection")
+		return nil, fmt.Errorf("Bid key %v does not exist in the collection", bidKey)
 	}
 
 	// Unmarshal the bid into a FullBid object.
@@ -176,18 +176,17 @@ func (c *AuctionContract) QueryBid(ctx contractapi.TransactionContextInterface, 
 		return nil, fmt.Errorf("Failed to unmarshal bid: %v", err)
 	}
 
-	// Check that client querying the bid is the bid owner.
+	// Check that the client querying the bid is the bid owner.
 	if bid.Bidder != clientID {
-		return nil, fmt.Errorf("Permission denied, client id %v is not the bid owner of the bid", clientID)
+		return nil, fmt.Errorf("Permission denied, client id %v is not the owner of the bid", clientID)
 	}
 
 	return bid, nil
 }
 
-// Submit is used by the bidder to add the hash of that bid stored in private data
-// to the auction. Note that this functions alters the auction in private state,
-// and needs to meet the auction endorsement policy. Transaction ID is used to
-// identify the bid.
+// SubmitBid is used by the bidder to add the hash of that bid stored in private data to the
+// auction. Note that this function alters the auction in private state, and needs
+// to meet the auction endorsement policy. Transaction ID is used identify the bid.
 func (c *AuctionContract) SubmitBid(ctx contractapi.TransactionContextInterface, auctionID string, txID string) error {
 	// Get the MSP ID of the bidder's org.
 	clientOrgID, err := ctx.GetClientIdentity().GetMSPID()
@@ -225,13 +224,13 @@ func (c *AuctionContract) SubmitBid(ctx contractapi.TransactionContextInterface,
 		return fmt.Errorf("Failed to get bid hash from private data collection: %v", err)
 	}
 	if bidHash == nil {
-		return fmt.Errorf("Bid Hash does not exist in private data collection: %v", bidKey)
+		return fmt.Errorf("Bid Hash does not exist in private data collection: %s", bidKey)
 	}
 
 	// Store the hash along with the bidder's organization.
 	NewBidHash := BidHash{
 		Org:  clientOrgID,
-		Hash: fmt.Sprintf("%x", bidKey),
+		Hash: fmt.Sprintf("%x", bidHash),
 	}
 
 	// Add the bid hash to the auction bidders hash.
@@ -240,7 +239,7 @@ func (c *AuctionContract) SubmitBid(ctx contractapi.TransactionContextInterface,
 	bidders[bidKey] = NewBidHash
 	auction.PrivateBids = bidders
 
-	// Add the bindding organizarion to the list of participating organizations if it is not already.
+	// Add the bidding organization to the list of participating organizations if it is not already.
 	Orgs := auction.Orgs
 	if !contains(Orgs, clientOrgID) {
 		newOrgs := append(Orgs, clientOrgID)
@@ -248,7 +247,7 @@ func (c *AuctionContract) SubmitBid(ctx contractapi.TransactionContextInterface,
 
 		err = addAssetStateBasedEndorsement(ctx, auctionID, clientOrgID)
 		if err != nil {
-			return fmt.Errorf("Failed setting state based endorsement for new organizations: %v", err)
+			return fmt.Errorf("Failed setting state based endorsement for new organization: %v", err)
 		}
 	}
 
@@ -263,7 +262,7 @@ func (c *AuctionContract) SubmitBid(ctx contractapi.TransactionContextInterface,
 	return nil
 }
 
-// RevealBid is used by the bidder to reveal the bid after the auction is closed.
+// RevealBid is used by a bidder to reveal their bid after the auction is closed.
 func (c *AuctionContract) RevealBid(ctx contractapi.TransactionContextInterface, auctionID string, txID string) error {
 	// Get Bid from transient map.
 	transientMap, err := ctx.GetStub().GetTransient()
@@ -276,7 +275,7 @@ func (c *AuctionContract) RevealBid(ctx contractapi.TransactionContextInterface,
 		return fmt.Errorf("Bid key not found in the transient map")
 	}
 
-	// Get the implicit collection name using the bidder's organization ID.
+	// Get implicit collection name using the bidder's organization ID.
 	collection, err := getCollectionName(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to get implicit collection name: %v", err)
@@ -294,7 +293,7 @@ func (c *AuctionContract) RevealBid(ctx contractapi.TransactionContextInterface,
 		return fmt.Errorf("Failed to get private bid hash from collection: %v", err)
 	}
 	if bidHash == nil {
-		return fmt.Errorf("Bid hash does not exist in private data collection: %v", bidKey)
+		return fmt.Errorf("Bid hash does not exist in private data collection: %s", bidKey)
 	}
 
 	// Get auction from public state
@@ -321,18 +320,26 @@ func (c *AuctionContract) RevealBid(ctx contractapi.TransactionContextInterface,
 
 	// Verify that the hash of the passed immutable properties matches the on-chain hash.
 	if !bytes.Equal(calculatedBidHash, bidHash) {
-		return fmt.Errorf("Hash %x for bid hash %s does not match hash in auction: %x", calculatedBidHash, transientBid, bidHash)
+		return fmt.Errorf("Hash %x for bid hash %s does not match hash in auction: %x",
+			calculatedBidHash,
+			transientBid,
+			bidHash,
+		)
 	}
 
 	// Check 3: check hash of revealed bid matches hash of private bid that was
-	// added earlier. This ensures that the bid hash not changed since it
+	// added earlier. This ensures that the bid has not changed since it
 	// was added to the auction.
 	bidders := auction.PrivateBids
 	privateBidHashString := bidders[bidKey].Hash
 
-	onChainBidHashString := fmt.Sprintf("%x", bidKey)
+	onChainBidHashString := fmt.Sprintf("%x", bidHash)
 	if privateBidHashString != onChainBidHashString {
-		return fmt.Errorf("Hash %s for bid %s does not match hash in auction: %s, bidder must have changed bid", privateBidHashString, transientBid, onChainBidHashString)
+		return fmt.Errorf("Hash %s for bid %s does not match hash in auction: %s, bidder must have changed bid",
+			privateBidHashString,
+			transientBid,
+			onChainBidHashString,
+		)
 	}
 
 	// We can add the bid to the auction if all checks have passed.
@@ -388,7 +395,7 @@ func (c *AuctionContract) RevealBid(ctx contractapi.TransactionContextInterface,
 }
 
 // CloseAuction can be used by the seller to close the auction. This prevents bids
-// from being added to the auction, and allows the auction to be revealed.
+// from being added to the auction, and allows users to reveal their bid.
 func (c *AuctionContract) CloseAuction(ctx contractapi.TransactionContextInterface, auctionID string) error {
 	// Get auction from public state.
 	auction, err := c.QueryAuction(ctx, auctionID)
@@ -396,7 +403,7 @@ func (c *AuctionContract) CloseAuction(ctx contractapi.TransactionContextInterfa
 		return fmt.Errorf("Failed to get auction from public state: %v", err)
 	}
 
-	// The auction can only closed by the seller.
+	// The auction can only be closed by the seller.
 
 	// Get ID of submitting client identity.
 	clientID, err := c.GetSubmittingClientIdentity(ctx)
@@ -429,7 +436,8 @@ func (c *AuctionContract) CloseAuction(ctx contractapi.TransactionContextInterfa
 	return nil
 }
 
-// EndAuction both changes the auction state to closed, and reveals the winning bid.
+// EndAuction both changes the auction status to closed, and reveals the winning bid
+// of the auction.
 func (c *AuctionContract) EndAuction(ctx contractapi.TransactionContextInterface, auctionID string) error {
 	// Get auction from public state.
 	auction, err := c.QueryAuction(ctx, auctionID)
@@ -461,7 +469,7 @@ func (c *AuctionContract) EndAuction(ctx contractapi.TransactionContextInterface
 
 	// Check if there are any revealed bids in the auction.
 	if len(auction.RevealedBids) == 0 {
-		return fmt.Errorf("No bids have been revealed, cannot end auction %v", err)
+		return fmt.Errorf("No bids have been revealed, cannot end auction: %v", err)
 	}
 
 	// Determine the highest bid.

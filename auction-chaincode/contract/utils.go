@@ -27,7 +27,7 @@ func (c *AuctionContract) GetSubmittingClientIdentity(ctx contractapi.Transactio
 	return string(decodeID), nil
 }
 
-// setAssetStateBasedEndorsement sets the state of the asset to be endorsed by the specified org.
+// setAssetStateBasedEndorsement sets the endorsement policy of a new auction.
 func setAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, auctionID string, orgToEndorse string) error {
 	// Get the endorsement policy.
 	endorsementPolicy, err := statebased.NewStateEP(nil)
@@ -50,14 +50,14 @@ func setAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, 
 	// Set validation parameter on the asset.
 	err = ctx.GetStub().SetStateValidationParameter(auctionID, policy)
 	if err != nil {
-		return fmt.Errorf("FAiled to set validation parameter on auction: %v", err)
+		return fmt.Errorf("Failed to set validation parameter on auction: %v", err)
 	}
 
 	return nil
 }
 
 // addAssetStateBasedEndorsement adds a new organization as an endorser of the auction
-func addAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, auctionID string, orgsToEndorse string) error {
+func addAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, auctionID string, orgToEndorse string) error {
 	// Get the endorsement policy.
 	endorsementPolicy, err := ctx.GetStub().GetStateValidationParameter(auctionID)
 	if err != nil {
@@ -71,7 +71,7 @@ func addAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, 
 	}
 
 	// Add the org to endorse to the policy.
-	err = newEndorsementPolicy.AddOrgs(statebased.RoleTypePeer, orgsToEndorse)
+	err = newEndorsementPolicy.AddOrgs(statebased.RoleTypePeer, orgToEndorse)
 	if err != nil {
 		return fmt.Errorf("Failed to add org to endorsement policy: %v", err)
 	}
@@ -85,7 +85,7 @@ func addAssetStateBasedEndorsement(ctx contractapi.TransactionContextInterface, 
 	// Set validation parameter on the asset.
 	err = ctx.GetStub().SetStateValidationParameter(auctionID, policy)
 	if err != nil {
-		return fmt.Errorf("FAiled to set validation parameter on auction: %v", err)
+		return fmt.Errorf("Failed to set validation parameter on auction: %v", err)
 	}
 
 	return nil
@@ -105,7 +105,7 @@ func getCollectionName(ctx contractapi.TransactionContextInterface) (string, err
 	return orgCollectionName, nil
 }
 
-// verifyClientOrgMatchesPeerOrg is an internal utility function used to verify that client org
+// verifyClientOrgMatchesPeerOrg is an internal utility function used to verify that client org id
 // matches peer org id.
 func verifyClientOrgMatchesPeerOrg(ctx contractapi.TransactionContextInterface) error {
 	// Get the MSP ID of client identity.
@@ -122,7 +122,7 @@ func verifyClientOrgMatchesPeerOrg(ctx contractapi.TransactionContextInterface) 
 
 	// Verify that MSP ID of client identity matches MSP ID of peer org.
 	if clientMSPID != peerMSPID {
-		return fmt.Errorf("Client MSP ID %s is not authorized to read or write private data from an org %s peer", clientMSPID, peerMSPID)
+		return fmt.Errorf("Client MSP ID from org %v is not authorized to read or write private data from an org %v peer", clientMSPID, peerMSPID)
 	}
 
 	return nil
@@ -139,7 +139,7 @@ func contains(s []string, str string) bool {
 	return false
 }
 
-// CheckForHigherBid is an internal function that is used to determine if a
+// checkForHigherBid is an internal function that is used to determine if a
 // winning bid has yet to be revealed.
 func checkForHigherBid(ctx contractapi.TransactionContextInterface, auctionPrice int, revealedBidders map[string]FullBid, bidders map[string]BidHash) error {
 	// Get MSP ID of peer org.
