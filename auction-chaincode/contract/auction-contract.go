@@ -332,7 +332,7 @@ func (c *AuctionContract) RevealBid(ctx contractapi.TransactionContextInterface,
 	revealedBids[bidKey] = NewBid
 	auction.RevealedBids = revealedBids
 
-	// Update the auction in private state.
+	// Update the auction in state.
 	newAuction, _ := json.Marshal(auction)
 
 	// Put auction with bid added back into state.
@@ -405,6 +405,42 @@ func (c *AuctionContract) CheckForHigherBid(ctx contractapi.TransactionContextIn
 // CloseAuction can be used by the seller to close the auction. This prevents bids
 // from being added to the auction, and allows the auction to be revealed.
 func (c *AuctionContract) CloseAuction(ctx contractapi.TransactionContextInterface, auctionID string) error {
+	// Get auction from public state.
+	auction, err := c.QueryAuction(ctx, auctionID)
+	if err != nil {
+		return fmt.Errorf("Failed to get auction from public state: %v", err)
+	}
+
+	// The auction can only closed by the seller.
+
+	// Get ID of submitting client identity.
+	clientID, err := c.GetSubmittingClientIdentity(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get submitting client identity: %v", err)
+	}
+
+	Seller := auction.Seller
+	if Seller != clientID {
+		return fmt.Errorf("Auction can only be closed by seller: %v", err)
+	}
+
+	// Check if auction is already closed.
+	Status := auction.Status
+	if Status != "open" {
+		return fmt.Errorf("Cannot close auction that is not open")
+	}
+
+	// Change status of auction to closed.
+	auction.Status = string("closed")
+
+	// Update the auction in state.
+	closedAuction, _ := json.Marshal(auction)
+
+	err = ctx.GetStub().PutState(auctionID, closedAuction)
+	if err != nil {
+		return fmt.Errorf("Failed to close auction: %v", err)
+	}
+
 	return nil
 }
 
