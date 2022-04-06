@@ -2,6 +2,7 @@ package contract
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/hyperledger/fabric-chaincode-go/pkg/statebased"
@@ -136,4 +137,62 @@ func contains(s []string, str string) bool {
 	}
 
 	return false
+}
+
+// CheckForHigherBid is an internal function that is used to determine if a
+// winning bid has yet to be revealed.
+func checkForHigherBid(ctx contractapi.TransactionContextInterface, auctionPrice int, revealedBidders map[string]FullBid, bidders map[string]BidHash) error {
+	// Get MSP ID of peer org.
+	peerMSPID, err := shim.GetMSPID()
+	if err != nil {
+		return fmt.Errorf("Failed to get MSP ID of peer org: %v", err)
+	}
+
+	var error error = nil
+
+	// Loop through all bidders and check if they are the highest bidder.
+	for bidKey, privateBid := range bidders {
+		_, bidInAuction := revealedBidders[bidKey]
+
+		// Bid is not already revealed, so check if it is the highest bidder, otherwise skip.
+		if !bidInAuction {
+			collection := "_implicit_org_" + privateBid.Org
+
+			// If private bid is from the same org as the peer, then check if it is the highest bidder.
+			if privateBid.Org == peerMSPID {
+				// Get bid from private data collection.
+				bytes, err := ctx.GetStub().GetPrivateData(collection, bidKey)
+				if err != nil {
+					return fmt.Errorf("Failed to get private data of bid from collection %v: %v", bidKey, err)
+				}
+				if bytes == nil {
+					return fmt.Errorf("Bid %v does not exist", bidKey)
+				}
+
+				bid := new(FullBid)
+
+				err = json.Unmarshal(bytes, bid)
+
+				if err != nil {
+					return fmt.Errorf("Failed to unmarshal bid %v: %v", bidKey, err)
+				}
+
+				// Check if bid is higher than auction price.
+				if bid.Price > auctionPrice {
+					error = fmt.Errorf("Cannot close auction, bidder has a higher price: %v", err)
+				}
+			} else {
+				// Get bid hash from from private data collection.
+				Hash, err := ctx.GetStub().GetPrivateDataHash(collection, bidKey)
+				if err != nil {
+					return fmt.Errorf("Failed to get private data of bid hash from collection %v: %v", bidKey, err)
+				}
+				if Hash == nil {
+					return fmt.Errorf("Bid hash %v does not exist", bidKey)
+				}
+			}
+		}
+	}
+
+	return error
 }

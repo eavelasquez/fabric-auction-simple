@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
@@ -344,64 +343,6 @@ func (c *AuctionContract) RevealBid(ctx contractapi.TransactionContextInterface,
 	return nil
 }
 
-// CheckForHigherBid is an internal function that is used to determine if a
-// winning bid has yet to be revealed.
-func (c *AuctionContract) CheckForHigherBid(ctx contractapi.TransactionContextInterface, auctionPrice int, revealedBidders map[string]FullBid, bidders map[string]BidHash) error {
-	// Get MSP ID of peer org.
-	peerMSPID, err := shim.GetMSPID()
-	if err != nil {
-		return fmt.Errorf("Failed to get MSP ID of peer org: %v", err)
-	}
-
-	var error error = nil
-
-	// Loop through all bidders and check if they are the highest bidder.
-	for bidKey, privateBid := range bidders {
-		_, bidInAuction := revealedBidders[bidKey]
-
-		// Bid is not already revealed, so check if it is the highest bidder, otherwise skip.
-		if !bidInAuction {
-			collection := "_implicit_org_" + privateBid.Org
-
-			// If private bid is from the same org as the peer, then check if it is the highest bidder.
-			if privateBid.Org == peerMSPID {
-				// Get bid from private data collection.
-				bytes, err := ctx.GetStub().GetPrivateData(collection, bidKey)
-				if err != nil {
-					return fmt.Errorf("Failed to get private data of bid from collection %v: %v", bidKey, err)
-				}
-				if bytes == nil {
-					return fmt.Errorf("Bid %v does not exist", bidKey)
-				}
-
-				bid := new(FullBid)
-
-				err = json.Unmarshal(bytes, bid)
-
-				if err != nil {
-					return fmt.Errorf("Failed to unmarshal bid %v: %v", bidKey, err)
-				}
-
-				// Check if bid is higher than auction price.
-				if bid.Price > auctionPrice {
-					error = fmt.Errorf("Cannot close auction, bidder has a higher price: %v", err)
-				}
-			} else {
-				// Get bid hash from from private data collection.
-				Hash, err := ctx.GetStub().GetPrivateDataHash(collection, bidKey)
-				if err != nil {
-					return fmt.Errorf("Failed to get private data of bid hash from collection %v: %v", bidKey, err)
-				}
-				if Hash == nil {
-					return fmt.Errorf("Bid hash %v does not exist", bidKey)
-				}
-			}
-		}
-	}
-
-	return error
-}
-
 // CloseAuction can be used by the seller to close the auction. This prevents bids
 // from being added to the auction, and allows the auction to be revealed.
 func (c *AuctionContract) CloseAuction(ctx contractapi.TransactionContextInterface, auctionID string) error {
@@ -446,5 +387,63 @@ func (c *AuctionContract) CloseAuction(ctx contractapi.TransactionContextInterfa
 
 // EndAuction both changes the auction state to closed, and reveals the winning bid.
 func (c *AuctionContract) EndAuction(ctx contractapi.TransactionContextInterface, auctionID string) error {
+	// Get auction from public state.
+	auction, err := c.QueryAuction(ctx, auctionID)
+	if err != nil {
+		return fmt.Errorf("Failed to get auction from public state: %v", err)
+	}
+
+	// Check that the auction is being ended by the seller.
+
+	// Get ID of submitting client identity.
+	clientID, err := c.GetSubmittingClientIdentity(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get submitting client identity: %v", err)
+	}
+
+	Seller := auction.Seller
+	if Seller != clientID {
+		return fmt.Errorf("Auction can only be ended by seller: %v", err)
+	}
+
+	// Check if auction is already closed.
+	Status := auction.Status
+	if Status != "closed" {
+		return fmt.Errorf("Cannot end auction that is not closed")
+	}
+
+	// Get the list of revealed bids
+	revealedBids := auction.RevealedBids
+
+	// Check if there are any revealed bids in the auction.
+	if len(auction.RevealedBids) == 0 {
+		return fmt.Errorf("No bids have been revealed, cannot end auction %v", err)
+	}
+
+	// Determine the highest bid.
+	for _, bid := range revealedBids {
+		if bid.Price > auction.Price {
+			auction.Price = bid.Price
+			auction.Winner = bid.Bidder
+		}
+	}
+
+	// Check if there is a winning bid that has yet to be revealed.
+	err = checkForHigherBid(ctx, auction.Price, auction.RevealedBids, auction.PrivateBids)
+	if err != nil {
+		return fmt.Errorf("Failed to check for higher bid, cannot end auction: %v", err)
+	}
+
+	// Change status of auction to ended.
+	auction.Status = string("ended")
+
+	// Update the auction in state.
+	endedAuction, _ := json.Marshal(auction)
+
+	err = ctx.GetStub().PutState(auctionID, endedAuction)
+	if err != nil {
+		return fmt.Errorf("Failed to end auction: %v", err)
+	}
+
 	return nil
 }
