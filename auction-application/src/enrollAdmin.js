@@ -8,6 +8,11 @@ const { buildCAClient, enrollAdmin } = require("./utils/CAUtil");
 const mspOrg1 = "Org1MSP";
 const mspOrg2 = "Org2MSP";
 
+/**
+ * @description Connects to the CA of the specified Org and enrolls the admin.
+ * @param {string} orgName - The name of the organization e.g. org1 or org2.
+ * @param {string} mspOrg - The MSP ID of the Org.
+ */
 async function connectToOrgCA(orgName, mspOrg) {
   console.log(`\n--> Enrolling the ${orgName} CA admin`);
   const ccpOrg = buildCCPOrg(orgName);
@@ -31,7 +36,7 @@ async function main() {
   let org = process.argv[2];
   try {
     if (!/^(org1|Org1|org2|Org2)$/.test(org)) {
-      console.log("Usage: node registerUser.js org userID");
+      console.log("Usage: node enrollAdmin.js Org");
       console.log("Org must be either org1 or Org1 or org2 or Org2");
       process.exit(1);
     }
