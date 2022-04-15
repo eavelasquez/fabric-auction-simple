@@ -28,13 +28,13 @@ async function connectToOrgCA(orgName, mspOrg) {
  * Enrolls the admin of the Org1 CA or Org2 CA.
  */
 async function main() {
-	if (process.argv[2] === undefined) {
-		console.log('Usage: node enrollAdmin.js Org');
-		process.exit(1);
-	}
+  try {
+    if (process.argv[2] === undefined) {
+      console.log('Usage: node enrollAdmin.js Org');
+      process.exit(1);
+    }
 
-	let org = process.argv[2];
-	try {
+    let org = process.argv[2];
 		if (!/^(org1|Org1|org2|Org2)$/.test(org)) {
 			console.log('Usage: node enrollAdmin.js Org');
 			console.log('Org must be either org1 or Org1 or org2 or Org2');
