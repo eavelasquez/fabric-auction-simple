@@ -3,14 +3,14 @@
 const path = require('path');
 const { Gateway } = require('fabric-network');
 
+const {
+	buildWallet,
+  buildCCPOrg,
+  prettyJSONString,
+} = require('./utils/AppUtil');
+
 const myChannel = 'mychannel';
 const myChaincodeName = 'auction-chaincode';
-
-const {
-	prettyJSONString,
-	buildCCPOrg,
-	buildWallet,
-} = require('./utils/AppUtil');
 
 /**
  * @description Submits the create auction transaction to the ledger and evaluates the result.

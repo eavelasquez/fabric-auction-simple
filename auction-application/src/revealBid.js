@@ -4,9 +4,9 @@ const path = require('path');
 const { Gateway } = require('fabric-network');
 
 const {
-	prettyJSONString,
-	buildCCPOrg,
 	buildWallet,
+  buildCCPOrg,
+  prettyJSONString,
 } = require('./utils/AppUtil');
 
 const myChannel = 'mychannel';
