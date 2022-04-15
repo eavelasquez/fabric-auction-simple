@@ -1,8 +1,8 @@
-"use strict";
+'use strict';
 
-const { Wallets, Wallet } = require("fabric-network");
-const fs = require("fs");
-const path = require("path");
+const { Wallets } = require('fabric-network');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * @description This function is used to load the common connection profile.
@@ -13,12 +13,12 @@ exports.buildCCPOrg = (orgName) => {
   // Load the common connection configuration file.
   const ccpPath = path.resolve(
     __dirname,
-    "..",
-    "..",
-    "..",
-    "test-network",
-    "organizations",
-    "peerOrganizations",
+    '..',
+    '..',
+    '..',
+    'test-network',
+    'organizations',
+    'peerOrganizations',
     `${orgName}.example.com`,
     `connection-${orgName}.json`
   );
@@ -30,7 +30,7 @@ exports.buildCCPOrg = (orgName) => {
   }
 
   // Read the common connection profile.
-  const contents = fs.readFileSync(ccpPath, "utf8");
+  const contents = fs.readFileSync(ccpPath, 'utf8');
 
   // Build a JSON object from the file contents.
   const ccp = JSON.parse(contents);
@@ -52,7 +52,7 @@ exports.buildWallet = async (walletPath) => {
     console.log(`Built a file system wallet at ${walletPath}`);
   } else {
     wallet = await Wallets.newInMemoryWallet();
-    console.log("Built an in memory wallet");
+    console.log('Built an in memory wallet');
   }
 
   return wallet;

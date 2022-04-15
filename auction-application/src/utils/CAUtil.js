@@ -1,10 +1,9 @@
-"use strict";
+'use strict';
 
-const FabricCAServices = require("fabric-ca-client");
-const { Wallet } = require("fabric-network");
+const FabricCAServices = require('fabric-ca-client');
 
-const adminUserId = "admin";
-const adminUserPasswd = "adminpw";
+const adminUserId = 'admin';
+const adminUserPasswd = 'adminpw';
 
 /**
  * @description This function is used to build a new Fabric CA client.
@@ -38,7 +37,7 @@ exports.enrollAdmin = async (caClient, wallet, orgMspId) => {
     const identity = await wallet.get(adminUserId);
     if (identity) {
       console.log(
-        "An identity for the admin user already exists in the wallet"
+        'An identity for the admin user already exists in the wallet'
       );
       return;
     }
@@ -54,11 +53,11 @@ exports.enrollAdmin = async (caClient, wallet, orgMspId) => {
         privateKey: enrollment.key.toBytes(),
       },
       mspId: orgMspId,
-      type: "X.509",
+      type: 'X.509',
     };
     await wallet.put(adminUserId, x509Identity);
     console.log(
-      "Successfully enrolled admin user and imported it into the wallet"
+      'Successfully enrolled admin user and imported it into the wallet'
     );
   } catch (error) {
     console.error(`Failed to enroll admin user: ${error}`);
@@ -94,7 +93,7 @@ exports.registerAndEnrollUser = async (
     const adminIdentity = await wallet.get(adminUserId);
     if (!adminIdentity) {
       console.log(
-        "An identity for the admin user does not exist in the wallet.\n Enroll the admin user before retrying"
+        'An identity for the admin user does not exist in the wallet.\n Enroll the admin user before retrying'
       );
       return;
     }
@@ -111,7 +110,7 @@ exports.registerAndEnrollUser = async (
       {
         affiliation,
         enrollmentID: userId,
-        role: "client",
+        role: 'client',
       },
       adminUser
     );
@@ -125,7 +124,7 @@ exports.registerAndEnrollUser = async (
         privateKey: enrollment.key.toBytes(),
       },
       mspId: orgMspId,
-      type: "X.509",
+      type: 'X.509',
     };
     await wallet.put(userId, x509Identity);
     console.log(
