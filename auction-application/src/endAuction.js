@@ -18,7 +18,6 @@ const myChaincodeName = "auction-chaincode";
  * @param {Wallet} wallet - The wallet.
  * @param {string} user - The user.
  * @param {string} auctionID - The auction ID.
- * @param {string} item - The item.
  */
 async function endAuction(ccp, wallet, user, auctionID) {
   try {
@@ -59,9 +58,7 @@ async function endAuction(ccp, wallet, user, auctionID) {
     console.log("\n*** Result: committed");
 
     // Evaluate the transaction.
-    console.log(
-      "\n--> Evaluate Transaction: Query the auction that was just created"
-    );
+    console.log("\n--> Evaluate Transaction: Query the updated auction");
     let result = await contract.evaluateTransaction("QueryAuction", auctionID);
     console.log("\n*** Result: Auction: ", prettyJSONString(result.toString()));
 
@@ -80,14 +77,14 @@ async function endAuction(ccp, wallet, user, auctionID) {
  */
 function checkArgs(condition, message = "") {
   if (!condition) {
-    console.log("\nUsage: node createAuction.js <org> <userID> <auctionID>");
+    console.log("\nUsage: node endAuction.js <org> <userID> <auctionID>");
     console.log(message);
     process.exit(-1);
   }
 }
 
 /**
- * @description Creates an auction and submits it to the ledger.
+ * @description Ends an auction and submits it to the ledger.
  */
 async function main() {
   try {
@@ -121,7 +118,7 @@ async function main() {
     const walletPath = path.join(__dirname, `wallet/${org}`);
     const wallet = await buildWallet(walletPath);
 
-    await createAuction(ccp, wallet, user, auctionID, item);
+    await endAuction(ccp, wallet, user, auctionID);
   } catch (error) {
     console.error(`Failed to run the end auction: ${error}`);
     if (error.stack) {
