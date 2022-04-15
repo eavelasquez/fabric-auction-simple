@@ -1,16 +1,17 @@
 "use strict";
 
+const FabricCAServices = require("fabric-ca-client");
+
 const adminUserId = "admin";
 const adminUserPasswd = "adminpw";
 
 /**
  * @description This function is used to build a new Fabric CA client.
- * @param {*} FabricCAServices - The Fabric CA services class.
  * @param {*} ccp - The common connection profile.
  * @param {string} caHostName - The CA host name.
  * @returns {*} The Fabric CA services object.
  */
-exports.buildCAClient = (FabricCAServices, ccp, caHostName) => {
+exports.buildCAClient = (ccp, caHostName) => {
   // Create a new CA client for interacting with the CA.
   const caInfo = ccp.certificateAuthorities[caHostName]; // lookup CA details from config.
   const caTLSCACerts = caInfo.tlsCACerts.pem;

@@ -1,5 +1,6 @@
 "use strict";
 
+const { Wallets } = require("fabric-network");
 const fs = require("fs");
 const path = require("path");
 
@@ -40,11 +41,10 @@ exports.buildCCPOrg = (orgName) => {
 
 /**
  * @description This function is used to create a new wallet.
- * @param {*} Wallets - The Wallets class.
  * @param {string} walletPath - Directory path to the wallet.
  * @returns {*} The wallet object.
  */
-exports.buildWallet = async (Wallets, walletPath) => {
+exports.buildWallet = async (walletPath) => {
   // Create a new wallet, note that wallet is for managing identities.
   let wallet;
   if (walletPath) {

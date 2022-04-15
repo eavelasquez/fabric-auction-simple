@@ -1,8 +1,6 @@
 "use strict";
 
 const path = require("path");
-const FabricCAServices = require("fabric-ca-client");
-const { Wallets } = require("fabric-network");
 
 const { buildCCPOrg, buildWallet } = require("./utils/AppUtil");
 const { buildCAClient, enrollAdmin } = require("./utils/CAUtil");
@@ -13,14 +11,10 @@ const mspOrg2 = "Org2MSP";
 async function connectToOrgCA(orgName, mspOrg) {
   console.log(`\n--> Enrolling the ${orgName} CA admin`);
   const ccpOrg = buildCCPOrg(orgName);
-  const caOrgClient = buildCAClient(
-    FabricCAServices,
-    ccpOrg,
-    `ca.${orgName}.example.com`
-  );
+  const caOrgClient = buildCAClient(ccpOrg, `ca.${orgName}.example.com`);
 
   const walletPathOrg = path.join(__dirname, `wallet/${orgName}`);
-  const walletOrg = await buildWallet(Wallets, walletPathOrg);
+  const walletOrg = await buildWallet(walletPathOrg);
 
   await enrollAdmin(caOrgClient, walletOrg, mspOrg);
 }
