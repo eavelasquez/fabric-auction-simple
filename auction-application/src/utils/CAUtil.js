@@ -1,6 +1,7 @@
 "use strict";
 
 const FabricCAServices = require("fabric-ca-client");
+const { Wallet } = require("fabric-network");
 
 const adminUserId = "admin";
 const adminUserPasswd = "adminpw";
@@ -9,7 +10,7 @@ const adminUserPasswd = "adminpw";
  * @description This function is used to build a new Fabric CA client.
  * @param {*} ccp - The common connection profile.
  * @param {string} caHostName - The CA host name.
- * @returns {*} The Fabric CA services object.
+ * @returns {FabricCAServices} The Fabric CA services object.
  */
 exports.buildCAClient = (ccp, caHostName) => {
   // Create a new CA client for interacting with the CA.
@@ -26,10 +27,10 @@ exports.buildCAClient = (ccp, caHostName) => {
 };
 
 /**
- *
- * @param {*} caClient
- * @param {*} wallet
- * @param {*} orgMspId
+ * @description This function is used to enroll the admin of the CA.
+ * @param {FabricCAServices} caClient - The Fabric CA services object.
+ * @param {Wallet} wallet - The wallet.
+ * @param {string} orgMspId - The MSP ID of the organization.
  */
 exports.enrollAdmin = async (caClient, wallet, orgMspId) => {
   try {
@@ -66,11 +67,11 @@ exports.enrollAdmin = async (caClient, wallet, orgMspId) => {
 
 /**
  * @description This function is used to register a new user and enroll it with the CA.
- * @param {*} caClient
- * @param {*} wallet
- * @param {*} orgMspId
- * @param {*} userId
- * @param {*} affiliation
+ * @param {FabricCAServices} caClient - The Fabric CA services object.
+ * @param {Wallet} wallet - The wallet.
+ * @param {string} orgMspId - The MSP ID of the organization.
+ * @param {string} userId - The user ID.
+ * @param {string} affiliation - The organization affiliation.
  */
 exports.registerAndEnrollUser = async (
   caClient,
