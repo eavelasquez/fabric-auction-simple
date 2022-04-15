@@ -2,6 +2,7 @@
 
 const { Wallets } = require('fabric-network');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 /**
@@ -12,10 +13,8 @@ const path = require('path');
 exports.buildCCPOrg = (orgName) => {
   // Load the common connection configuration file.
   const ccpPath = path.resolve(
-    __dirname,
-    '..',
-    '..',
-    '..',
+    os.homedir(),
+    'fabric-samples',
     'test-network',
     'organizations',
     'peerOrganizations',
