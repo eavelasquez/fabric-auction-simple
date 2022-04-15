@@ -14,14 +14,14 @@ const mspOrg2 = 'Org2MSP';
  * @param {string} mspOrg - The MSP ID of the Org.
  */
 async function connectToOrgCA(orgName, mspOrg) {
-	console.log(`\n--> Enrolling the ${orgName} CA admin`);
-	const ccpOrg = buildCCPOrg(orgName);
-	const caOrgClient = buildCAClient(ccpOrg, `ca.${orgName}.example.com`);
+  console.log(`\n--> Enrolling the ${orgName} CA admin`);
+  const ccpOrg = buildCCPOrg(orgName);
+  const caOrgClient = buildCAClient(ccpOrg, `ca.${orgName}.example.com`);
 
-	const walletPathOrg = path.join(__dirname, `wallet/${orgName}`);
-	const walletOrg = await buildWallet(walletPathOrg);
+  const walletPathOrg = path.join(__dirname, `wallet/${orgName}`);
+  const walletOrg = await buildWallet(walletPathOrg);
 
-	await enrollAdmin(caOrgClient, walletOrg, mspOrg);
+  await enrollAdmin(caOrgClient, walletOrg, mspOrg);
 }
 
 /**
@@ -35,18 +35,18 @@ async function main() {
     }
 
     let org = process.argv[2];
-		if (!/^(org1|Org1|org2|Org2)$/.test(org)) {
-			console.log('Usage: node enrollAdmin.js Org');
-			console.log('Org must be either org1 or Org1 or org2 or Org2');
-			process.exit(1);
-		}
+    if (!/^(org1|Org1|org2|Org2)$/.test(org)) {
+      console.log('Usage: node enrollAdmin.js Org');
+      console.log('Org must be either org1 or Org1 or org2 or Org2');
+      process.exit(1);
+    }
 
-		org = org.toLowerCase();
-		await connectToOrgCA(org, org === 'org1' ? mspOrg1 : mspOrg2);
-	} catch (error) {
-		console.error(`Error in enrolling admin: ${error}`);
-		process.exit(1);
-	}
+    org = org.toLowerCase();
+    await connectToOrgCA(org, org === 'org1' ? mspOrg1 : mspOrg2);
+  } catch (error) {
+    console.error(`Error in enrolling admin: ${error}`);
+    process.exit(1);
+  }
 }
 
 // Execute the main function.

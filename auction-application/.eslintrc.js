@@ -1,3 +1,5 @@
+'use strict';
+
 module.exports = {
   env: {
     node: true,
@@ -9,7 +11,7 @@ module.exports = {
     sourceType: 'script'
   },
   rules: {
-    indent: ['error', 'tab'],
+    indent: ['error', 2],
     'linebreak-style': ['error', 'unix'],
     quotes: ['error', 'single'],
     semi: ['error', 'always'],
