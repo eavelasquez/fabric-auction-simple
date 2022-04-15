@@ -4,8 +4,10 @@ const path = require('path');
 const { Gateway } = require('fabric-network');
 
 const {
-  buildWallet,
   buildCCPOrg,
+  buildWallet,
+  checkArgs,
+  handleError,
   prettyJSONString,
 } = require('./utils/AppUtil');
 
@@ -19,6 +21,7 @@ const myChaincodeName = 'auction-chaincode';
  * @param {string} user - The user.
  * @param {string} auctionID - The auction ID.
  * @param {string} bidID - The bid ID.
+ * @returns {Promise<void>}
  */
 async function addBid(ccp, wallet, user, auctionID, bidID) {
   try {
@@ -90,20 +93,8 @@ async function addBid(ccp, wallet, user, auctionID, bidID) {
   }
 }
 
-/**
- * @description Checks if the argument is valid.
- * @param {boolean} condition - The condition to check.
- * @param {string} message - The message to display if the condition is false.
- */
-function checkArgs(condition, message = '') {
-  if (!condition) {
-    console.log(
-      '\nUsage: node revealBid.js <org> <userID> <auctionID> <bidID>'
-    );
-    console.log(message);
-    process.exit(-1);
-  }
-}
+// Argument list for the script.
+const fileAndArgs = 'revealBid.js <org> <userID> <auctionID> <bidID>';
 
 /**
  * @description Creates an auction and submits it to the ledger.
@@ -117,6 +108,7 @@ async function main() {
         process.argv[3] === undefined ||
         process.argv[4] === undefined ||
         process.argv[5] === undefined,
+      fileAndArgs,
       'Missing required arguments: org, userID, auctionID, bidID'
     );
 
@@ -124,18 +116,22 @@ async function main() {
     let [, , org, user, auctionID, bidID] = process.argv;
     checkArgs(
       /^(org1|Org1|org2|Org2)$/.test(org),
+      fileAndArgs,
       'Org must be either org1 or Org1 or org2 or Org2'
     );
     checkArgs(
       /^[a-zA-Z0-9]+$/.test(user),
+      fileAndArgs,
       'User ID must be a non-empty string'
     );
     checkArgs(
       /^[0-9]+$/.test(auctionID),
+      fileAndArgs,
       'Auction ID must be a non-empty string and must be a number'
     );
     checkArgs(
       /^[a-zA-Z0-9]+$/.test(bidID),
+      fileAndArgs,
       'Bid ID must be a non-empty string'
     );
 
@@ -147,11 +143,7 @@ async function main() {
 
     await addBid(ccp, wallet, user, auctionID, bidID);
   } catch (error) {
-    console.error(`Failed to run the reveal bid: ${error}`);
-    if (error.stack) {
-      console.error(error.stack);
-    }
-    process.exit(1);
+    handleError('Failed to run the reveal bid transaction: ', error);
   }
 }
 

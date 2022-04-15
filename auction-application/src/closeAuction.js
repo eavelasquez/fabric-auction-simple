@@ -4,8 +4,10 @@ const path = require('path');
 const { Gateway } = require('fabric-network');
 
 const {
-  buildWallet,
   buildCCPOrg,
+  buildWallet,
+  checkArgs,
+  handleError,
   prettyJSONString,
 } = require('./utils/AppUtil');
 
@@ -18,6 +20,7 @@ const myChaincodeName = 'auction-chaincode';
  * @param {Wallet} wallet - The wallet.
  * @param {string} user - The user.
  * @param {string} auctionID - The auction ID.
+ * @returns {Promise<void>}
  */
 async function closeAuction(ccp, wallet, user, auctionID) {
   try {
@@ -69,18 +72,8 @@ async function closeAuction(ccp, wallet, user, auctionID) {
   }
 }
 
-/**
- * @description Checks if the argument is valid.
- * @param {boolean} condition - The condition to check.
- * @param {string} message - The message to display if the condition is false.
- */
-function checkArgs(condition, message = '') {
-  if (!condition) {
-    console.log('\nUsage: node closeAuction.js <org> <userID> <auctionID>');
-    console.log(message);
-    process.exit(-1);
-  }
-}
+// Argument list for the script.
+const fileAndArgs = 'closeAuction.js <org> <userID> <auctionID>';
 
 /**
  * @description Close an auction and submits it to the ledger.
@@ -90,24 +83,28 @@ async function main() {
     // Check if the user has provided all the required inputs.
     checkArgs(
       process.argv.length < 4 ||
-      process.argv[2] === undefined ||
-      process.argv[3] === undefined ||
-      process.argv[4] === undefined,
+        process.argv[2] === undefined ||
+        process.argv[3] === undefined ||
+        process.argv[4] === undefined,
+      fileAndArgs,
       'Missing required arguments: org, userID, auctionID'
     );
 
-    // Get all the arguments.
+    // Get all the arguments and validate them.
     let [, , org, user, auctionID] = process.argv;
     checkArgs(
       /^(org1|Org1|org2|Org2)$/.test(org),
+      fileAndArgs,
       'Org must be either org1 or Org1 or org2 or Org2'
     );
     checkArgs(
       /^[a-zA-Z0-9]+$/.test(user),
+      fileAndArgs,
       'User ID must be a non-empty string'
     );
     checkArgs(
       /^[0-9]+$/.test(auctionID),
+      fileAndArgs,
       'Auction ID must be a non-empty string and must be a number'
     );
 
@@ -119,11 +116,7 @@ async function main() {
 
     await closeAuction(ccp, wallet, user, auctionID);
   } catch (error) {
-    console.error(`Failed to run the close auction: ${error}`);
-    if (error.stack) {
-      console.error(error.stack);
-    }
-    process.exit(1);
+    handleError('Failed to run the close auction', error);
   }
 }
 

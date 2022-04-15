@@ -68,3 +68,30 @@ exports.prettyJSONString = (inputString) => {
     ? JSON.stringify(JSON.parse(inputString), null, 2)
     : inputString;
 };
+
+/**
+ * @description Checks if the argument is valid.
+ * @param {boolean} condition - The condition to check.
+ * @param {string} fileAndArgs - The file and arguments.
+ * @param {string} message - The message to display if the condition is false.
+ */
+exports.checkArgs = (condition, fileAndArgs, message = '') => {
+  if (!condition) {
+    console.log(`\nUsage: node ${fileAndArgs}`);
+    console.log(message);
+    process.exit(1);
+  }
+};
+
+/**
+ * @description This function is used to handle errors.
+ * @param {string} message - The message to display.
+ * @param {Error} error - The error to display.
+ */
+exports.handleError = (message, error) => {
+  console.error(`${message}: ${error}`);
+  if (error.stack) {
+    console.error(error.stack);
+  }
+  process.exit(1);
+};

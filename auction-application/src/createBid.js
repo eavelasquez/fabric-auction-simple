@@ -4,8 +4,10 @@ const path = require('path');
 const { Gateway } = require('fabric-network');
 
 const {
-  buildWallet,
   buildCCPOrg,
+  buildWallet,
+  checkArgs,
+  handleError,
   prettyJSONString,
 } = require('./utils/AppUtil');
 
@@ -22,6 +24,7 @@ const myChaincodeName = 'auction-chaincode';
  * @param {string} orgMSP - The org MSP.
  * @param {string} auctionID - The auction ID.
  * @param {number} price - The price.
+ * @returns {Promise<void>}
  */
 async function createBid(ccp, wallet, user, orgMSP, auctionID, price) {
   try {
@@ -95,20 +98,8 @@ async function createBid(ccp, wallet, user, orgMSP, auctionID, price) {
   }
 }
 
-/**
- * @description Checks if the argument is valid.
- * @param {boolean} condition - The condition to check.
- * @param {string} message - The message to display if the condition is false.
- */
-function checkArgs(condition, message = '') {
-  if (!condition) {
-    console.log(
-      '\nUsage: node createBid.js.js <org> <userID> <auctionID> <price>'
-    );
-    console.log(message);
-    process.exit(-1);
-  }
-}
+// Argument list for the script.
+const fileAndArgs = 'createBid.js <org> <userID> <auctionID> <price>';
 
 /**
  * @description Creates an bid and submits it to the ledger.
@@ -122,6 +113,7 @@ async function main() {
         process.argv[3] === undefined ||
         process.argv[4] === undefined ||
         process.argv[5] === undefined,
+      fileAndArgs,
       'Missing required arguments: org, userID, auctionID, price'
     );
 
@@ -129,18 +121,22 @@ async function main() {
     let [, , org, user, auctionID, price] = process.argv;
     checkArgs(
       /^(org1|Org1|org2|Org2)$/.test(org),
+      fileAndArgs,
       'Org must be either org1 or Org1 or org2 or Org2'
     );
     checkArgs(
       /^[a-zA-Z0-9]+$/.test(user),
+      fileAndArgs,
       'User ID must be a non-empty string'
     );
     checkArgs(
       /^[0-9]+$/.test(auctionID),
+      fileAndArgs,
       'Auction ID must be a non-empty string and must be a number'
     );
     checkArgs(
       /^[0-9]+$/.test(price),
+      fileAndArgs,
       'Price must be a non-empty string and must be a number'
     );
 
@@ -159,8 +155,7 @@ async function main() {
       price
     );
   } catch (error) {
-    console.error(`Failed to run the create auction: ${error}`);
-    process.exit(1);
+    handleError('Failed to run the create auction', error);
   }
 }
 

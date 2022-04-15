@@ -4,8 +4,10 @@ const path = require('path');
 const { Gateway } = require('fabric-network');
 
 const {
-  buildWallet,
   buildCCPOrg,
+  buildWallet,
+  checkArgs,
+  handleError,
   prettyJSONString,
 } = require('./utils/AppUtil');
 
@@ -19,6 +21,7 @@ const myChaincodeName = 'auction-chaincode';
  * @param {string} user - The user.
  * @param {string} auctionID - The auction ID.
  * @param {string} item - The item.
+ * @returns {Promise<void>}
  */
 async function createAuction(ccp, wallet, user, auctionID, item) {
   try {
@@ -57,20 +60,8 @@ async function createAuction(ccp, wallet, user, auctionID, item) {
   }
 }
 
-/**
- * @description Checks if the argument is valid.
- * @param {boolean} condition - The condition to check.
- * @param {string} message - The message to display if the condition is false.
- */
-function checkArgs(condition, message = '') {
-  if (!condition) {
-    console.log(
-      '\nUsage: node createAuction.js <org> <userID> <auctionID> <item>'
-    );
-    console.log(message);
-    process.exit(-1);
-  }
-}
+// Argument list for the script.
+const fileAndArgs = 'createAuction.js <org> <userID> <auctionID> <item>';
 
 /**
  * @description Creates an auction and submits it to the ledger.
@@ -80,10 +71,11 @@ async function main() {
     // Check if the user has provided all the required inputs.
     checkArgs(
       process.argv.length < 5 ||
-      process.argv[2] === undefined ||
-      process.argv[3] === undefined ||
-      process.argv[4] === undefined ||
-      process.argv[5] === undefined,
+        process.argv[2] === undefined ||
+        process.argv[3] === undefined ||
+        process.argv[4] === undefined ||
+        process.argv[5] === undefined,
+      fileAndArgs,
       'Missing required arguments: org, userID, auctionID, item'
     );
 
@@ -91,17 +83,24 @@ async function main() {
     let [, , org, user, auctionID, item] = process.argv;
     checkArgs(
       /^(org1|Org1|org2|Org2)$/.test(org),
+      fileAndArgs,
       'Org must be either org1 or Org1 or org2 or Org2'
     );
     checkArgs(
       /^[a-zA-Z0-9]+$/.test(user),
+      fileAndArgs,
       'User ID must be a non-empty string'
     );
     checkArgs(
       /^[0-9]+$/.test(auctionID),
+      fileAndArgs,
       'Auction ID must be a non-empty string and must be a number'
     );
-    checkArgs(/^[a-zA-Z0-9]+$/.test(item), 'Item must be a non-empty string');
+    checkArgs(
+      /^[a-zA-Z0-9]+$/.test(item),
+      fileAndArgs,
+      'Item must be a non-empty string'
+    );
 
     org = org.toLowerCase();
 
@@ -111,7 +110,7 @@ async function main() {
 
     await createAuction(ccp, wallet, user, auctionID, item);
   } catch (error) {
-    console.error(`Failed to run the create auction: ${error}`);
+    handleError('Failed to run the create auction', error);
   }
 }
 
