@@ -57,3 +57,14 @@ exports.buildWallet = async (Wallets, walletPath) => {
 
   return wallet;
 };
+
+/**
+ * @description This function is used to stringify a JSON object.
+ * @param {string} inputString - The input string.
+ * @returns {string} The pretty string.
+ */
+exports.prettyJSONString = (inputString) => {
+  return inputString
+    ? JSON.stringify(JSON.parse(inputString), null, 2)
+    : inputString;
+};
